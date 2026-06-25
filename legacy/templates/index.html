@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Thief Arena - 智能工作流分析</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header {
+            background: white; border-radius: 16px; padding: 30px; margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .header h1 { font-size: 32px; color: #1a1a2e; margin-bottom: 10px; }
+        .header p { color: #666; font-size: 16px; }
+        .input-section {
+            background: white; border-radius: 12px; padding: 25px; margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .input-row { display: flex; gap: 10px; margin-bottom: 15px; }
+        .input-row input {
+            flex: 1; padding: 15px 20px; font-size: 16px;
+            border: 2px solid #e0e0e0; border-radius: 10px; outline: none;
+            transition: border-color 0.3s;
+        }
+        .input-row input:focus { border-color: #667eea; }
+        .preset-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+        .preset-btn {
+            padding: 10px 20px; background: #f0f0f0; border: none; border-radius: 8px;
+            cursor: pointer; font-size: 14px; transition: all 0.3s;
+        }
+        .preset-btn:hover { background: #667eea; color: white; }
+        .preset-btn.active { background: #667eea; color: white; font-weight: bold; }
+        .analyze-btn {
+            width: 100%; padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; border-radius: 10px;
+            font-size: 18px; font-weight: bold; cursor: pointer; transition: transform 0.2s;
+        }
+        .analyze-btn:hover { transform: translateY(-2px); }
+        .analyze-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+
+        .loading { display: none; background: white; border-radius: 12px; padding: 40px; margin-bottom: 20px; }
+        .loading.active { display: block; }
+        .spinner {
+            border: 4px solid #f3f3f3; border-top: 4px solid #667eea;
+            border-radius: 50%; width: 50px; height: 50px;
+            animation: spin 1s linear infinite; margin: 0 auto 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .progress-bar { height: 10px; background: #f0f0f0; border-radius: 5px; overflow: hidden; margin-top: 20px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); width: 0%; transition: width 0.3s; }
+
+        .results { display: none; }
+        .results.active { display: block; }
+        .result-header {
+            background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 20px; border-radius: 12px; text-align: center;
+        }
+        .metric-card.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .metric-card.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .metric-card.orange { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        .metric-value { font-size: 28px; font-weight: bold; margin-bottom: 5px; }
+        .metric-label { font-size: 14px; opacity: 0.9; }
+
+        .tabs { display: flex; background: white; border-radius: 12px; overflow: hidden; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab {
+            padding: 15px 20px; text-align: center; cursor: pointer;
+            background: #f5f5f5; border: none; font-size: 14px; transition: all 0.3s;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; font-weight: bold;
+        }
+        .tab:hover:not(.active) { background: #e8e8e8; }
+        .content { background: white; border-radius: 12px; padding: 30px; display: none; }
+        .content.active { display: block; }
+
+        .section-title {
+            font-size: 22px; color: #1a1a2e; margin-bottom: 20px;
+            padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;
+        }
+        .step-card {
+            background: #f9f9f9; border-left: 4px solid #667eea;
+            padding: 18px; border-radius: 10px; margin-bottom: 15px;
+        }
+        .step-title { font-size: 17px; color: #1a1a2e; margin-bottom: 12px; }
+        .pain-point {
+            background: #fff3cd; border-left: 4px solid #ffc107;
+            padding: 18px; border-radius: 10px; margin-bottom: 15px;
+        }
+        .intervention-point {
+            background: #d4edda; border-left: 4px solid #28a745;
+            padding: 18px; border-radius: 10px; margin-bottom: 15px;
+        }
+        .two-cols { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .card { background: #f9f9f9; padding: 18px; border-radius: 10px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #667eea; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .flow-diagram { background: #f9f9f9; padding: 20px; border-radius: 10px; overflow-x: auto; }
+        .download-buttons { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .download-btn {
+            padding: 12px 25px; background: #28a745; color: white; border: none;
+            border-radius: 8px; text-decoration: none; font-weight: bold; cursor: pointer;
+            font-size: 16px;
+        }
+        .download-btn:hover { background: #218838; }
+        .download-btn.docx { background: #2b579a; }
+        .download-btn.docx:hover { background: #1e3e6e; }
+        .download-btn.mermaid { background: #ff6b6b; }
+        .download-btn.mermaid:hover { background: #ee5a5a; }
+        .note {
+            background: #e3f2fd; border-left: 4px solid #2196f3;
+            padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 14px;
+        }
+        .legend { display: flex; gap: 20px; flex-wrap: wrap; margin: 20px 0; }
+        .legend-item { display: flex; align-items: center; gap: 8px; }
+        .legend-color { width: 20px; height: 20px; border-radius: 4px; }
+        .auto { background: #90EE90; border: 2px solid #333; }
+        .assist { background: #87CEEB; border: 2px solid #333; }
+        .human { background: #FFB6C1; border: 2px solid #333; }
+        .risk { background: #FFD700; border: 2px solid #333; }
+        @media (max-width: 768px) {
+            .metrics { grid-template-columns: repeat(2, 1fr); }
+            .two-cols { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🕵️ Workflow Thief Arena</h1>
+            <p>通用工作流发现与优化系统 - 自动搜索、分析、生成完整报告</p>
+        </div>
+
+        <div class="input-section">
+            <div class="note">
+                <strong>💡 提示：</strong> 选择预设工作流或输入关键词，点击分析按钮开始。预设数据可直接查看，自定义关键词将调用网络搜索和LLM分析。
+            </div>
+            <label style="display: block; margin-bottom: 8px; font-weight: bold;">选择预设或输入关键词：</label>
+            <div class="preset-buttons">
+                {% for key, data in presets.items() %}
+                <button class="preset-btn" onclick="selectPreset('{{ key }}', '{{ data.name }}')">{{ data.short_name or data.name }}</button>
+                {% endfor %}
+            </div>
+            <div class="input-row">
+                <input type="text" id="keyword-input" placeholder="例如：保险公司理赔处理流程、企业招聘筛选流程...">
+            </div>
+            <div style="display: flex; gap: 15px; margin-bottom: 15px; align-items: center; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="use-real-api" checked style="width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-weight: bold;">使用真实 LLM 分析</span>
+                </label>
+                <span style="color: #666; font-size: 14px;">（关闭则使用预设数据）</span>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="analyze-btn" id="analyze-btn" onclick="startAnalysis()">🔍 开始分析</button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p id="loading-text" style="text-align: center; font-size: 16px;">正在准备...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="result-header">
+                <h2 id="result-title" style="font-size: 24px; margin-bottom: 5px;"></h2>
+                <p id="result-subtitle" style="margin: 0; color: #666;"></p>
+            </div>
+
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-value" id="metric-steps">0</div>
+                    <div class="metric-label">工作流步骤</div>
+                </div>
+                <div class="metric-card.green">
+                    <div class="metric-value" id="metric-saving">0</div>
+                    <div class="metric-label">年度节省</div>
+                </div>
+                <div class="metric-card.blue">
+                    <div class="metric-value" id="metric-roi">0%</div>
+                    <div class="metric-label">第一年 ROI</div>
+                </div>
+                <div class="metric-card.orange">
+                    <div class="metric-value" id="metric-payback">0</div>
+                    <div class="metric-label">回本周期</div>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('overview')">📋 项目概述</button>
+                <button class="tab" onclick="showTab('original')">🔄 原始工作流</button>
+                <button class="tab" onclick="showTab('agent')">🤖 Agent改造</button>
+                <button class="tab" onclick="showTab('pain')">⚠️ 低效点</button>
+                <button class="tab" onclick="showTab('product')">💡 产品方案</button>
+                <button class="tab" onclick="showTab('mvp')">📅 7天MVP</button>
+                <button class="tab" onclick="showTab('cost')">💰 成本分析</button>
+                <button class="tab" onclick="showTab('evidence')">📚 证据链</button>
+            </div>
+
+            <div class="content active" id="tab-overview">
+                <h2 class="section-title">项目概述</h2>
+                <div class="card" id="overview-content"></div>
+                <h3 class="section-title" style="margin-top: 30px;">技术与工具</h3>
+                <div class="card" id="tech-content"></div>
+                <h3 class="section-title" style="margin-top: 30px;">设计理念</h3>
+                <div class="card" id="design-content"></div>
+            </div>
+
+            <div class="content" id="tab-original">
+                <h2 class="section-title">原始工作流</h2>
+                <div class="flow-diagram" id="original-flow"></div>
+                <h3 class="section-title" style="margin-top: 30px;">流程详情</h3>
+                <div id="original-steps"></div>
+            </div>
+
+            <div class="content" id="tab-agent">
+                <h2 class="section-title">Agent 改造后流程</h2>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color auto"></div>Agent完全自动</div>
+                    <div class="legend-item"><div class="legend-color assist"></div>Agent辅助</div>
+                    <div class="legend-item"><div class="legend-color human"></div>必须人类确认</div>
+                    <div class="legend-item"><div class="legend-color risk"></div>风险控制</div>
+                </div>
+                <div class="flow-diagram" id="agent-flow"></div>
+                <h3 class="section-title" style="margin-top: 30px;">Agent 介入点</h3>
+                <div id="agent-interventions"></div>
+                <h3 class="section-title" style="margin-top: 30px;">Agent 价值</h3>
+                <div id="agent-value"></div>
+            </div>
+
+            <div class="content" id="tab-pain">
+                <h2 class="section-title">低效点分析</h2>
+                <div id="pain-points"></div>
+            </div>
+
+            <div class="content" id="tab-product">
+                <h2 class="section-title">产品方案</h2>
+                <div id="product-content"></div>
+            </div>
+
+            <div class="content" id="tab-mvp">
+                <h2 class="section-title">7 天 MVP 验证计划</h2>
+                <div id="mvp-content"></div>
+            </div>
+
+            <div class="content" id="tab-cost">
+                <h2 class="section-title">成本与效率记录</h2>
+                <div id="cost-content"></div>
+            </div>
+
+            <div class="content" id="tab-evidence">
+                <h2 class="section-title">公开证据链</h2>
+                <div id="evidence-content"></div>
+            </div>
+
+            <div class="download-buttons" id="download-area">
+                <button class="download-btn" onclick="downloadFile('json')">📥 下载 JSON</button>
+                <button class="download-btn docx" onclick="downloadFile('docx')">📄 下载 Word</button>
+                <button class="download-btn mermaid" onclick="downloadFile('mermaid')">📊 下载 Mermaid</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({ startOnLoad: false, theme: 'default' });
+
+        let currentData = null;
+        let currentFiles = null;
+        let currentTaskId = null;
+        let pollingInterval = null;
+
+        async function selectPreset(key, name) {
+            document.getElementById('keyword-input').value = name;
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const r = await fetch(`/api/preset/${key}`);
+            const data = await r.json();
+            console.log('收到预设数据:', data);
+            console.log('证据链:', data.result?.evidence_urls);
+            if (data.result) {
+                await displayResults(data.result);
+            }
+        }
+
+        function startAnalysis() {
+            const keyword = document.getElementById('keyword-input').value.trim();
+            if (!keyword) {
+                alert('请输入关键词');
+                return;
+            }
+
+            const useRealApi = document.getElementById('use-real-api').checked;
+
+            document.getElementById('analyze-btn').disabled = true;
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('results').classList.remove('active');
+            document.getElementById('loading-text').textContent = useRealApi ? '正在调用 LLM 分析...' : '正在使用预设数据...';
+
+            fetch('/api/task', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keyword, use_real_llm: useRealApi })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.task_id) {
+                    currentTaskId = data.task_id;
+                    pollTask(data.task_id);
+                } else if (data.error) {
+                    alert(data.error);
+                    document.getElementById('analyze-btn').disabled = false;
+                }
+            });
+        }
+
+        function pollTask(taskId) {
+            pollingInterval = setInterval(async () => {
+                const r = await fetch(`/api/task/${taskId}`);
+                const data = await r.json();
+                document.getElementById('loading-text').textContent = data.stage || '处理中...';
+                document.getElementById('progress-fill').style.width = (data.progress || 0) + '%';
+
+                if (data.status === 'completed') {
+                    clearInterval(pollingInterval);
+                    currentFiles = data.files;
+                    await displayResults(data.result);
+                    document.getElementById('loading').classList.remove('active');
+                    document.getElementById('analyze-btn').disabled = false;
+                } else if (data.status === 'error') {
+                    clearInterval(pollingInterval);
+                    alert('分析失败: ' + (data.error || '未知错误'));
+                    document.getElementById('loading').classList.remove('active');
+                    document.getElementById('analyze-btn').disabled = false;
+                }
+            }, 1000);
+        }
+
+        async function displayResults(data) {
+            currentData = data;
+            console.log('displayResults 收到数据:', data);
+            console.log('displayResults evidence_urls:', data.evidence_urls);
+            document.getElementById('results').classList.add('active');
+
+            document.getElementById('result-title').textContent = data.workflow_name || data.name || '工作流分析';
+            document.getElementById('result-subtitle').textContent = (data.industry || '') + ' | ' + (data.trigger_condition || data.trigger || '');
+
+            const cost = data.cost || {};
+            const savings = cost.savings || {};
+            const roi = cost.roi || {};
+            document.getElementById('metric-steps').textContent = (data.metrics?.steps || data.steps?.length) || 0;
+            document.getElementById('metric-saving').textContent = formatNumber(savings.annual_savings || 0);
+            document.getElementById('metric-roi').textContent = (roi.first_year_roi || 0) + '%';
+            document.getElementById('metric-payback').textContent = (roi.break_even_months || 0) + ' 个月';
+
+            renderOverview(data);
+            await renderOriginalFlow(data);
+            await renderAgentFlow(data);
+            renderPainPoints(data);
+            renderProduct(data);
+            renderMVP(data);
+            renderCost(data);
+            renderEvidence(data);
+
+            document.getElementById('download-area').style.display = currentFiles ? 'flex' : 'none';
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function formatNumber(num) {
+            if (!num) return '0';
+            if (num >= 10000) {
+                return (num / 10000).toFixed(1) + '万';
+            }
+            return num.toString();
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+
+        function renderOverview(data) {
+            const cost = data.cost || {};
+            const savings = cost.savings || {};
+            const roi = cost.roi || {};
+            document.getElementById('overview-content').innerHTML = `
+                <p><strong>项目名称：</strong>Workflow Thief Arena - ${data.workflow_name || data.name || '未知'} 智能分析</p>
+                <p><strong>所属行业：</strong>${data.industry || '未知'}</p>
+                <p><strong>项目目标：</strong>通过智能Agent技术，分析现有工作流程的低效点，提供自动化改造方案，提升业务效率。</p>
+                <p><strong>核心价值：</strong>预计年度节省 ${formatNumber(savings.annual_savings || 0)} 元，ROI ${roi.first_year_roi || 0}%</p>
+                <hr style="margin: 20px 0;">
+                <p><strong>Agent 搭建说明：</strong></p>
+                <ul style="padding-left: 20px;">
+                    <li>搜索Agent: 自动搜索网络上的工作流相关信息</li>
+                    <li>抓取Agent: 自动抓取网页内容，提取有价值信息</li>
+                    <li>分析Agent: 使用大语言模型深度分析流程</li>
+                    <li>文档Agent: 自动生成结构化分析报告</li>
+                </ul>
+            `;
+            document.getElementById('tech-content').innerHTML = `
+                <table>
+                    <tr><th>类别</th><th>技术/工具</th></tr>
+                    <tr><td>大语言模型</td><td>Anthropic Claude (火山引擎)</td></tr>
+                    <tr><td>搜索引擎</td><td>Bing Search API</td></tr>
+                    <tr><td>网页抓取</td><td>BeautifulSoup + Requests</td></tr>
+                    <tr><td>后端框架</td><td>Python + Flask</td></tr>
+                    <tr><td>文档生成</td><td>python-docx</td></tr>
+                    <tr><td>流程图</td><td>Mermaid</td></tr>
+                </table>
+            `;
+            document.getElementById('design-content').innerHTML = `
+                <ul style="padding-left: 20px;">
+                    <li><strong>真实数据驱动：</strong>基于网络搜索的真实流程信息，而非假设</li>
+                    <li><strong>ROI导向：</strong>每个改造点都有明确的成本收益分析</li>
+                    <li><strong>渐进式落地：</strong>7天MVP验证，小步快跑，快速迭代</li>
+                    <li><strong>人机协作：</strong>Agent替代重复工作，人类专注高价值决策</li>
+                </ul>
+            `;
+        }
+
+        function sanitizeMermaidText(text) {
+            if (!text) return '';
+            text = String(text);
+            text = text.replace(/"/g, "'");
+            text = text.replace(/\n/g, ' ');
+            text = text.replace(/\\n/g, ' ');
+            text = text.replace(/，/g, ',');
+            text = text.replace(/、/g, ',');
+            text = text.replace(/；/g, ';');
+            text = text.replace(/：/g, ':');
+            text = text.replace(/（/g, ' ');
+            text = text.replace(/）/g, ' ');
+            text = text.replace(/\(/g, ' ');
+            text = text.replace(/\)/g, ' ');
+            text = text.replace(/\{/g, ' ');
+            text = text.replace(/\}/g, ' ');
+            text = text.replace(/\[/g, ' ');
+            text = text.replace(/\]/g, ' ');
+            text = text.replace(/\//g, '-');
+            text = text.replace(/\|/g, '-');
+            // 移除多个连续空格
+            while (text.indexOf('  ') >= 0) {
+                text = text.replace('  ', ' ');
+            }
+            if (text.length > 20) {
+                text = text.substring(0, 17) + '...';
+            }
+            return text.trim();
+        }
+
+        let mermaidIdCounter = 0;
+
+        async function renderMermaid(containerId, mermaidCode) {
+            const container = document.getElementById(containerId);
+            mermaidIdCounter++;
+            const graphId = `mermaid-${mermaidIdCounter}`;
+
+            try {
+                container.innerHTML = `<div id="${graphId}"></div>`;
+                const { svg } = await mermaid.render(graphId, mermaidCode);
+                container.innerHTML = svg;
+            } catch (err) {
+                console.error('Mermaid render error:', err);
+                container.innerHTML = `
+                    <div style="padding: 20px; background: #fff3cd; border-radius: 8px;">
+                        <p style="color: #856404; margin: 0;"><strong>流程图渲染失败</strong></p>
+                        <p style="margin: 10px 0 0 0; font-family: monospace; font-size: 12px; white-space: pre-wrap;">${err.message || '未知错误'}</p>
+                        <details style="margin-top: 10px;">
+                            <summary>查看Mermaid代码</summary>
+                            <pre style="margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 11px; overflow-x: auto;">${escapeHtml(mermaidCode)}</pre>
+                        </details>
+                    </div>
+                `;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function renderOriginalFlow(data) {
+            const mermaidCode = generateMermaidOriginal(data);
+            await renderMermaid('original-flow', mermaidCode);
+
+            const steps = data.steps || [];
+            let tableHtml = `<table><tr><th>步骤</th><th>描述</th><th>角色</th><th>输入</th><th>输出</th><th>系统</th></tr>`;
+            steps.forEach(step => {
+                tableHtml += `<tr>
+                    <td>${step.step_number}</td>
+                    <td>${step.description}</td>
+                    <td>${step.role}</td>
+                    <td>${step.input}</td>
+                    <td>${step.output}</td>
+                    <td>${step.system}</td>
+                </tr>`;
+            });
+            tableHtml += `</table>`;
+            document.getElementById('original-steps').innerHTML = tableHtml;
+        }
+
+        async function renderAgentFlow(data) {
+            const mermaidCode = generateMermaidAgent(data);
+            await renderMermaid('agent-flow', mermaidCode);
+
+            const agentFlow = data.agent_flow || {};
+            const interventions = agentFlow.intervention_points || [];
+            let intHtml = `<table><tr><th>步骤</th><th>介入类型</th><th>Agent动作</th><th>风险控制</th></tr>`;
+            interventions.forEach(p => {
+                intHtml += `<tr>
+                    <td>${p.step_number}</td>
+                    <td>${p.intervention_type}</td>
+                    <td>${p.description}</td>
+                    <td>${p.risk_control || '无'}</td>
+                </tr>`;
+            });
+            intHtml += `</table>`;
+            document.getElementById('agent-interventions').innerHTML = intHtml;
+
+            const values = agentFlow.agent_value_proposition || [];
+            let valHtml = `<ul style="padding-left: 20px;">`;
+            values.forEach(v => {
+                valHtml += `<li style="margin: 10px 0;">✅ ${v}</li>`;
+            });
+            valHtml += `</ul>`;
+            document.getElementById('agent-value').innerHTML = valHtml;
+        }
+
+        function renderPainPoints(data) {
+            const painPoints = data.pain_points || {};
+            const painLabels = {
+                'manual_repetition': '🔄 人工重复',
+                'information_movement': '📋 信息搬运',
+                'judgment_cost': '⚖️ 判断成本',
+                'communication_cost': '💬 沟通成本',
+                'waiting_cost': '⏳ 等待成本',
+                'audit_cost': '✅ 审核成本'
+            };
+            let html = '';
+            Object.entries(painPoints).forEach(([key, pain]) => {
+                const steps = pain.step_numbers || (pain.step_number ? pain.step_number.split(',') : []);
+                html += `<div class="pain-point">
+                    <h4 style="margin-bottom: 10px;">${painLabels[key] || key} (占比 ${pain.time_percentage}%)</h4>
+                    <p><strong>描述：</strong>${pain.description}</p>
+                    <p><strong>相关步骤：</strong>${Array.isArray(steps) ? steps.join(', ') : steps}</p>
+                    <p><strong>低效原因：</strong>${pain.why_inefficient}</p>
+                </div>`;
+            });
+            document.getElementById('pain-points').innerHTML = html;
+        }
+
+        function renderProduct(data) {
+            const agentFlow = data.agent_flow || {};
+            const product = agentFlow.product_solution || {};
+            document.getElementById('product-content').innerHTML = `
+                <div class="card">
+                    <h3 style="margin-bottom: 15px;">${product.product_name || '智能流程助手'}</h3>
+                    <h4>核心功能</h4>
+                    <ul style="padding-left: 20px;">
+                        ${(product.core_features || []).map(f => `<li style="margin: 8px 0;">${f}</li>`).join('')}
+                    </ul>
+                    <h4 style="margin-top: 20px;">用户故事</h4>
+                    <ul style="padding-left: 20px;">
+                        ${(product.user_stories || []).map(s => `<li style="margin: 8px 0;">${s}</li>`).join('')}
+                    </ul>
+                    <h4 style="margin-top: 20px;">技术架构</h4>
+                    <p>${product.tech_architecture || '采用模块化设计，前后端分离'}</p>
+                </div>
+            `;
+        }
+
+        function renderMVP(data) {
+            const agentFlow = data.agent_flow || {};
+            const mvpPlan = agentFlow.mvp_plan || [];
+            let html = `<table><tr><th>Day</th><th>阶段</th><th>任务</th><th>交付物</th><th>成功指标</th><th>负责人</th><th>工具</th></tr>`;
+            mvpPlan.forEach(p => {
+                html += `<tr>
+                    <td>${p.day}</td>
+                    <td>${p.phase}</td>
+                    <td>${p.task}</td>
+                    <td>${p.deliverable}</td>
+                    <td>${p.success_metric}</td>
+                    <td>${p.owner}</td>
+                    <td>${p.tools_used}</td>
+                </tr>`;
+            });
+            html += `</table>`;
+            document.getElementById('mvp-content').innerHTML = html;
+        }
+
+        function renderCost(data) {
+            const cost = data.cost || {};
+            const current = cost.current_cost_detail || {};
+            const agentCost = cost.agent_cost_detail || {};
+            const savings = cost.savings || {};
+            const roi = cost.roi || {};
+            document.getElementById('cost-content').innerHTML = `
+                <h3>计算假设</h3>
+                <ul style="padding-left: 20px; margin-bottom: 20px;">
+                    ${(cost.assumptions || []).map(a => `<li style="margin: 8px 0;">${a}</li>`).join('')}
+                </ul>
+                <div class="two-cols">
+                    <div>
+                        <h3>当前成本</h3>
+                        <table>
+                            <tr><th>岗位</th><th>月薪</th><th>月成本</th></tr>
+                            ${(current.labor_cost_breakdown || []).map(l => `
+                                <tr><td>${l.role}</td><td>${l.monthly_salary}</td><td>${l.monthly_cost}</td></tr>
+                            `).join('')}
+                        </table>
+                        <div class="card" style="margin-top: 15px; text-align: center;">
+                            <strong>月度总成本: ${current.total_monthly_cost || 0} 元</strong><br>
+                            <strong>年度总成本: ${current.total_annual_cost || 0} 元</strong>
+                        </div>
+                    </div>
+                    <div>
+                        <h3>Agent 方案成本</h3>
+                        <div class="card">
+                            <p>初期部署成本: ${agentCost.setup_cost || 0} 元</p>
+                            <p>月度维护成本: ${agentCost.maintenance_cost || 0} 元</p>
+                            <p>API 单例成本: ${agentCost.api_cost_per_unit || 0} 元</p>
+                        </div>
+                        <div class="card" style="margin-top: 15px; text-align: center; background: #d4edda;">
+                            <strong>月度总成本: ${agentCost.total_monthly_cost || 0} 元</strong><br>
+                            <strong>年度总成本: ${agentCost.total_annual_cost || 0} 元</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="two-cols" style="margin-top: 20px;">
+                    <div class="card" style="background: #d4edda; text-align: center;">
+                        <strong>月度节省: ${savings.monthly_savings || 0} 元</strong>
+                    </div>
+                    <div class="card" style="background: #d4edda; text-align: center;">
+                        <strong>年度节省: ${savings.annual_savings || 0} 元</strong>
+                    </div>
+                </div>
+                <div class="card" style="margin-top: 20px; background: #e3f2fd; text-align: center;">
+                    <strong>💡 回本周期: ${roi.break_even_months || 0} 个月</strong> |
+                    <strong>📊 第一年 ROI: ${roi.first_year_roi || 0}%</strong>
+                </div>
+            `;
+        }
+
+        function renderEvidence(data) {
+            console.log('renderEvidence 被调用, data:', data);
+            const evidence = data.evidence_urls || [];
+            console.log('renderEvidence evidence:', evidence);
+            let html = '';
+            if (evidence.length === 0) {
+                html = `
+                    <div style="padding: 20px; background: #fff3cd; border-radius: 8px; text-align: center;">
+                        <p style="margin: 0; color: #856404;">
+                            <strong>⚠️ 暂无公开证据链</strong><br>
+                            使用预设数据时，证据链为示例数据。点击"开始分析"可获取真实网络证据。
+                        </p>
+                    </div>
+                `;
+            } else {
+                html = `<ol style="padding-left: 20px;">`;
+                evidence.forEach(e => {
+                    const title = e.title || '无标题';
+                    const url = e.url || '#';
+                    html += `
+                        <li style="margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                            <strong>${title}</strong><br>
+                            <a href="${url}" target="_blank" style="color: #667eea; word-break: break-all;">${url}</a>
+                        </li>
+                    `;
+                });
+                html += `</ol>`;
+            }
+            const el = document.getElementById('evidence-content');
+            console.log('renderEvidence 元素:', el);
+            el.innerHTML = html;
+            console.log('renderEvidence 内容已设置');
+        }
+
+        function generateMermaidOriginal(data) {
+            let trigger = sanitizeMermaidText(data.trigger_condition || data.trigger || '触发条件');
+            if (trigger.length > 15) {
+                trigger = trigger.substring(0, 12) + '...';
+            }
+
+            let mermaid = `flowchart TD
+    Start((开始)) --> Roles[参与角色]
+    Roles --> Trigger[${trigger}]
+`;
+            let prev = 'Trigger';
+            (data.steps || []).forEach(step => {
+                const id = `Step${step.step_number}`;
+                const desc = sanitizeMermaidText(step.description);
+                const label = `${step.step_number}.${desc}`;
+
+                if (step.is_decision) {
+                    mermaid += `    ${prev} --> ${id}{${label}}\n`;
+                    mermaid += `    ${id} --> Next${step.step_number}[下一步]\n`;
+                    mermaid += `    ${id} --> Reject${step.step_number}[退回]\n`;
+                    prev = `Next${step.step_number}`;
+                } else {
+                    mermaid += `    ${prev} --> ${id}[${label}]\n`;
+                    prev = id;
+                }
+            });
+            mermaid += `    ${prev} --> End((结束))`;
+            return mermaid;
+        }
+
+        function generateMermaidAgent(data) {
+            let trigger = sanitizeMermaidText(data.trigger_condition || data.trigger || '触发条件');
+            if (trigger.length > 15) {
+                trigger = trigger.substring(0, 12) + '...';
+            }
+            const agentFlow = data.agent_flow || {};
+            const interventionMap = {};
+            (agentFlow.intervention_points || []).forEach(p => {
+                interventionMap[p.step_number] = p;
+            });
+
+            let mermaid = `flowchart TD
+    Start((开始)) --> Roles[参与角色]
+    Roles --> Trigger[${trigger}]
+`;
+            let prev = 'Trigger';
+            (data.steps || []).forEach(step => {
+                const id = `Step${step.step_number}`;
+                const intervention = interventionMap[step.step_number];
+                const desc = sanitizeMermaidText(step.description);
+                const baseLabel = `${step.step_number}.${desc}`;
+
+                if (intervention) {
+                    const type = intervention.intervention_type;
+                    let label;
+                    if (type.includes('完全自动')) {
+                        label = `${baseLabel}-自动`;
+                    } else if (type.includes('辅助')) {
+                        label = `${baseLabel}-Agent辅助`;
+                    } else {
+                        label = `${baseLabel}-人工确认`;
+                    }
+                    mermaid += `    ${prev} --> ${id}[${label}]
+`;
+
+                    if (intervention.risk_control) {
+                        const riskId = `Risk${step.step_number}`;
+                        mermaid += `    ${id} --> ${riskId}[风控]
+`;
+                        prev = riskId;
+                    } else {
+                        prev = id;
+                    }
+                } else {
+                    const label = `${baseLabel}-人工`;
+                    mermaid += `    ${prev} --> ${id}[${label}]
+`;
+                    prev = id;
+                }
+            });
+            mermaid += `    ${prev} --> End((结束))`;
+            return mermaid;
+        }
+
+        function downloadFile(type) {
+            if (!currentFiles || !currentFiles[type]) {
+                alert('该文件不可用，请先运行完整分析');
+                return;
+            }
+            window.location.href = '/output/' + currentFiles[type];
+        }
+    </script>
+</body>
+</html>

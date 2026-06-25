@@ -1,0 +1,50 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# ===== Node =====
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# ===== Env (sensitive) =====
+.env
+.env.*
+!.env.example
+backend/.env
+legacy/.env
+legacy/output/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*.suo
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Project specific =====
+output/
+*.mov
+*.mp4
+*.avi
+*.log
+
+# ===== Claude =====
+.claude/
