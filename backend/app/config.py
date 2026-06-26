@@ -2,6 +2,7 @@
 
 不写死任何 URL / API key。所有敏感配置走 .env 环境变量。
 """
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,7 +32,22 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://localhost:6379/1"
     celery_result_backend: str = "redis://localhost:6379/2"
 
-    # LLM (Anthropic 官方)
+    # LLM (火山引擎方舟 Claude 兼容协议, 底层 GLM-5.2)
+    # 同时支持 LLM_API_KEY 和 VOLC_API_KEY 两种环境变量名
+    llm_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("llm_api_key", "volc_api_key"),
+    )
+    llm_base_url: str = Field(
+        default="https://ark.cn-beijing.volces.com/api/coding",
+        validation_alias=AliasChoices("llm_base_url", "volc_base_url"),
+    )
+    llm_model: str = Field(
+        default="ark-code-latest",
+        validation_alias=AliasChoices("llm_model", "volc_model"),
+    )
+    # 三个 tier 都映射到同一个模型, 用 temperature 区分场景
+    # Phase 2 接入多模型时可以拆分
     anthropic_api_key: str = ""
     anthropic_model_haiku: str = "claude-haiku-4-5"
     anthropic_model_sonnet: str = "claude-sonnet-4-6"
