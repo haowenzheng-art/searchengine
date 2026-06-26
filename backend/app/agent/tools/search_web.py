@@ -1,7 +1,7 @@
-"""search_web tool - 调用 SerpAPI 返回搜索结果.
+"""search_web tool - 调用 DuckDuckGo 搜索 (无 API key).
 
-Phase 1: stub 实现，返回写死的测试数据让 orchestrator 能跑通.
-Phase 2: 接 SerpAPI，带 Redis 缓存，失败不 fallback (修 legacy/bing_search.py:52-79).
+Phase 2: 用 DuckDuckGo HTML 接口, 返回真实搜索结果.
+失败返回空列表, 不 fallback 写死 URL (修 legacy/bing_search.py:52-79).
 """
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app.agent.tools.base import Tool, ToolInput, ToolOutput
 from app.core.logging import get_logger
+from app.search.bing_scraper import search_bing
 
 log = get_logger(__name__)
 
@@ -29,25 +30,6 @@ class SearchWebOutput(ToolOutput):
     query: str
 
 
-_STUB_RESULTS: list[SearchResultItem] = [
-    SearchResultItem(
-        title="招聘筛选流程详解：从简历投递到录用的完整步骤",
-        url="https://hr.example.com/articles/recruitment-screening-process",
-        snippet="本文详细解析企业招聘筛选流程的6个关键步骤：简历初筛、电话面试、专业测试、复试、背景调查、录用决策...",
-    ),
-    SearchResultItem(
-        title="HR必读：如何设计高效的简历筛选标准",
-        url="https://hr.example.com/blog/resume-screening-criteria",
-        snippet="设计简历筛选标准的核心维度：硬技能匹配、软技能评估、经验相关性、文化契合度。附实操模板...",
-    ),
-    SearchResultItem(
-        title="大厂招聘面试流程拆解：字节跳动/阿里/腾讯",
-        url="https://tech.example.com/hr/big-tech-interview-flow",
-        snippet="字节跳动5轮面试、阿里4轮+HR、腾讯技术面+群面。每轮考察点、淘汰率、决策标准...",
-    ),
-]
-
-
 class SearchWebTool(Tool):
     name = "search_web"
     description = (
@@ -61,6 +43,8 @@ class SearchWebTool(Tool):
     async def execute(self, input: ToolInput) -> ToolOutput:
         assert isinstance(input, SearchWebInput)
         log.info("search_web_called", query=input.query, num_results=input.num_results)
-        results = _STUB_RESULTS[: input.num_results]
+        raw_results = await search_bing(input.query, num_results=input.num_results)
+        results = [SearchResultItem(**r) for r in raw_results]
         log.info("search_web_done", query=input.query, result_count=len(results))
         return SearchWebOutput(results=results, query=input.query)
+

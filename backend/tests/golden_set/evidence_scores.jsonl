@@ -1,0 +1,31 @@
+{"query": "招聘筛选流程", "url": "https://www.zhaopin.com/", "snippet": "智联招聘首页 求职找工作", "title": "智联招聘", "expected_score": 1.0, "expected_label": "recruitment_home", "reason": "招聘网站首页, 不是流程文章"}
+{"query": "招聘筛选流程", "url": "https://www.51job.com/", "snippet": "前程无忧 招聘网站", "title": "前程无忧", "expected_score": 1.0, "expected_label": "recruitment_home", "reason": "招聘网站首页"}
+{"query": "招聘筛选流程", "url": "https://www.liepin.com/", "snippet": "猎聘 企业招人平台", "title": "猎聘", "expected_score": 1.0, "expected_label": "recruitment_home", "reason": "招聘网站首页"}
+{"query": "招聘筛选流程", "url": "https://www.zhipin.com/", "snippet": "BOSS直聘 找工作", "title": "BOSS直聘", "expected_score": 1.0, "expected_label": "recruitment_home", "reason": "招聘网站首页"}
+{"query": "招聘筛选流程", "url": "https://www.sohu.com/a/984053472_122600016", "snippet": "公司的招聘流程：HR 筛选、用人经理面试、Offer 审批到底在看什么（附流程图）", "title": "02 公司的招聘流程：HR 筛选、用人经理面试、Offer 审批", "expected_score": 8.0, "expected_label": "positive", "reason": "搜狐文章, 详细讲招聘流程各环节"}
+{"query": "招聘筛选流程", "url": "https://zhuanlan.zhihu.com/p/562579457", "snippet": "纯干货!HR必备招聘执行全流程 - 知乎", "title": "纯干货!HR必备招聘执行全流程", "expected_score": 8.0, "expected_label": "positive", "reason": "知乎专栏文章, 招聘流程SOP详解"}
+{"query": "招聘筛选流程", "url": "https://blog.ihr360.com/p/310670/", "snippet": "招聘流程怎么写？完整步骤详解帮你快速制定招聘方案", "title": "招聘流程怎么写？完整步骤详解", "expected_score": 7.0, "expected_label": "positive", "reason": "HR行业博客, 完整流程步骤"}
+{"query": "招聘筛选流程", "url": "https://www.hr-soft.cn/info/2025121837259.html", "snippet": "候选人筛选完整操作指南：如何设计2025年招聘筛选流程与最佳实践", "title": "候选人筛选完整操作指南", "expected_score": 7.0, "expected_label": "positive", "reason": "HR SaaS 公司行业文章, 流程指南"}
+{"query": "招聘筛选流程", "url": "https://wiki.jianlipai.com/recruitment-process-complete-guide.html", "snippet": "从投递到入职：完整招聘流程图解", "title": "从投递到入职：完整招聘流程图解", "expected_score": 8.0, "expected_label": "positive", "reason": "招聘wiki, 8环节流程图解"}
+{"query": "招聘筛选流程", "url": "http://job.mohrss.gov.cn/", "snippet": "中国公共招聘网 人力资源社会保障部", "title": "中国公共招聘网", "expected_score": 2.0, "expected_label": "gov_disambiguation", "reason": "政府招聘网首页, 非企业流程文章"}
+{"query": "招聘筛选流程", "url": "https://www.changshu.gov.cn/zgcs/c100303/202603/eb76cc7129c8426895047c9c1e748a8a.shtml", "snippet": "常熟市2026年事业单位公开招聘工作人员公告", "title": "常熟市事业单位招聘公告", "expected_score": 2.0, "expected_label": "gov_disambiguation", "reason": "政府招聘公告, 非流程文章"}
+{"query": "保险理赔流程", "url": "https://www.picc.com.cn/", "snippet": "中国人保官网 车险 财产险", "title": "中国人保", "expected_score": 1.0, "expected_label": "homepage", "reason": "保险公司首页, 非流程文章"}
+{"query": "保险理赔流程", "url": "https://www.pa18.com/", "snippet": "平安保险官网", "title": "平安保险", "expected_score": 1.0, "expected_label": "homepage", "reason": "保险公司首页"}
+{"query": "保险理赔流程", "url": "https://zhuanlan.zhihu.com/p/385219161", "snippet": "保险理赔流程详解：从报案到结案的完整步骤", "title": "保险理赔流程详解", "expected_score": 8.0, "expected_label": "positive", "reason": "知乎文章, 理赔流程详解"}
+{"query": "保险理赔流程", "url": "https://www.sohu.com/a/503023567_120046567", "snippet": "保险理赔完整流程图解 报案 查勘 定损 核赔 结案", "title": "保险理赔完整流程图解", "expected_score": 7.0, "expected_label": "positive", "reason": "搜狐文章, 5环节流程图解"}
+{"query": "保险理赔流程", "url": "https://www.circ.gov.cn/", "snippet": "国家金融监督管理总局", "title": "国家金融监督管理总局", "expected_score": 2.0, "expected_label": "gov_disambiguation", "reason": "监管部门官网, 非流程文章"}
+{"query": "电商售后流程", "url": "https://www.taobao.com/", "snippet": "淘宝网 淘宝首页", "title": "淘宝网", "expected_score": 1.0, "expected_label": "homepage", "reason": "电商首页, 非售后流程"}
+{"query": "电商售后流程", "url": "https://www.jd.com/", "snippet": "京东商城 京东首页", "title": "京东", "expected_score": 1.0, "expected_label": "homepage", "reason": "电商首页"}
+{"query": "电商售后流程", "url": "https://zhuanlan.zhihu.com/p/456789012", "snippet": "电商售后流程拆解：退货退款换货完整SOP", "title": "电商售后流程拆解", "expected_score": 8.0, "expected_label": "positive", "reason": "知乎文章, 售后SOP详解"}
+{"query": "电商售后流程", "url": "https://www.sohu.com/a/612345678_901234", "snippet": "电商客服售后流程标准化：从工单到结案", "title": "电商客服售后流程标准化", "expected_score": 7.0, "expected_label": "positive", "reason": "搜狐文章, 售后流程标准化"}
+{"query": "客服退款流程", "url": "https://www.12315.cn/", "snippet": "全国12315平台", "title": "12315", "expected_score": 2.0, "expected_label": "gov_disambiguation", "reason": "投诉平台首页, 非流程文章"}
+{"query": "客服退款流程", "url": "https://zhuanlan.zhihu.com/p/998877665", "snippet": "客服退款流程设计：从工单到退款到账的完整链路", "title": "客服退款流程设计", "expected_score": 8.0, "expected_label": "positive", "reason": "知乎文章, 退款流程链路"}
+{"query": "客服退款流程", "url": "https://help.taobao.com/", "snippet": "淘宝帮助中心 退款帮助", "title": "淘宝帮助中心", "expected_score": 3.0, "expected_label": "help_page", "reason": "帮助中心首页, 不是讲流程的文章"}
+{"query": "招聘筛选流程", "url": "https://www.baidu.com/s?wd=招聘筛选流程", "snippet": "百度搜索结果页", "title": "百度搜索", "expected_score": 1.0, "expected_label": "search_page", "reason": "搜索引擎结果页, 非内容"}
+{"query": "招聘筛选流程", "url": "https://www.google.com/search?q=招聘筛选流程", "snippet": "Google 搜索", "title": "Google", "expected_score": 1.0, "expected_label": "search_page", "reason": "搜索引擎结果页"}
+{"query": "招聘筛选流程", "url": "https://www.bing.com/search?q=招聘", "snippet": "Bing 搜索结果", "title": "Bing搜索", "expected_score": 1.0, "expected_label": "search_page", "reason": "搜索引擎结果页"}
+{"query": "招聘筛选流程", "url": "https://hr.example.com/blog/recruitment-screening-process-steps", "snippet": "招聘筛选流程的6个关键步骤详解", "title": "招聘筛选流程的6个关键步骤", "expected_score": 8.0, "expected_label": "positive", "reason": "HR博客, 6步骤流程详解"}
+{"query": "招聘筛选流程", "url": "https://www.example.com/articles/recruitment-workflow", "snippet": "完整招聘工作流设计", "title": "完整招聘工作流设计", "expected_score": 7.0, "expected_label": "positive", "reason": "流程文章"}
+{"query": "招聘筛选流程", "url": "https://medium.com/@hr-expert/recruitment-screening-flow", "snippet": "Recruitment Screening Flow: A Complete Guide", "title": "Recruitment Screening Flow", "expected_score": 6.0, "expected_label": "boundary", "reason": "英文文章但相关, 边界case"}
+{"query": "招聘筛选流程", "url": "https://www.youtube.com/watch?v=recruitment", "snippet": "视频: 招聘流程讲解", "title": "招聘流程视频", "expected_score": 4.0, "expected_label": "boundary", "reason": "视频页面, 内容可能有用但非文章"}
+{"query": "招聘筛选流程", "url": "https://www.zhihu.com/question/1234567", "snippet": "如何设计招聘筛选流程?", "title": "如何设计招聘筛选流程?", "expected_score": 6.0, "expected_label": "boundary", "reason": "知乎问答, 内容依赖回答质量"}

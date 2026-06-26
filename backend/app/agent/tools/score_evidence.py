@@ -1,6 +1,5 @@
 """score_evidence tool - 评估 URL 与 query 的相关度.
 
-Phase 1: stub 实现，所有 URL 都返回 score=8.0 (通过阈值).
 Phase 2: 三层评估架构 - 规则过滤 + Haiku 粗筛 + Sonnet 复评.
 """
 from __future__ import annotations
@@ -9,6 +8,7 @@ from pydantic import Field
 
 from app.agent.tools.base import Tool, ToolInput, ToolOutput
 from app.core.logging import get_logger
+from app.search.scorer import score_evidence as _score_evidence
 
 log = get_logger(__name__)
 
@@ -41,12 +41,25 @@ class ScoreEvidenceTool(Tool):
     async def execute(self, input: ToolInput) -> ToolOutput:
         assert isinstance(input, ScoreEvidenceInput)
         log.info("score_evidence_called", url=input.url, query=input.query)
-        # Phase 1 stub: 直接给 8.0 让 orchestrator 能跑通
-        # Phase 2 替换为三层评估: 规则 -> Haiku -> Sonnet
-        return ScoreEvidenceOutput(
-            score=8.0,
-            reason="Phase 1 stub - all URLs pass. Phase 2 will use three-layer scoring.",
-            is_homepage=False,
-            is_disambiguation=False,
-            score_layer=1,
+        score, reason, is_home, is_disamb, layer = await _score_evidence(
+            url=input.url,
+            snippet=input.snippet,
+            query=input.query,
+            title=input.title,
         )
+        log.info(
+            "score_evidence_done",
+            url=input.url,
+            score=score,
+            layer=layer,
+            is_homepage=is_home,
+            is_disambiguation=is_disamb,
+        )
+        return ScoreEvidenceOutput(
+            score=score,
+            reason=reason,
+            is_homepage=is_home,
+            is_disambiguation=is_disamb,
+            score_layer=layer,
+        )
+
