@@ -14,7 +14,7 @@ from app.models import AgentRun, ToolCall
 
 
 async def create_agent_run(
-    session: AsyncSession, workflow_id: str, query: str
+    session: AsyncSession, workflow_id: int, query: str
 ) -> AgentRun:
     """创建新的 agent run，初始 messages 是 user query."""
     agent_run = AgentRun(

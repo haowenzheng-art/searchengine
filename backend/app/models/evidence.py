@@ -4,7 +4,7 @@ Phase 2 实现 scorer 填 score/score_reason/is_homepage/is_disambiguation。
 """
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -14,8 +14,10 @@ class Evidence(Base):
     __tablename__ = "evidence"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # Phase 3 才有 workflows 表，先用 string
-    workflow_id: Mapped[str] = mapped_column(String(64), index=True)
+    # FK to workflows.id. 一个 workflow 可能有多条证据.
+    workflow_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("workflows.id", ondelete="CASCADE"), index=True
+    )
     url: Mapped[str] = mapped_column(String(2048))
     title: Mapped[str | None] = mapped_column(String(512), nullable=True)
     snippet: Mapped[str | None] = mapped_column(Text, nullable=True)

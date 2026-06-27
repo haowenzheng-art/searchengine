@@ -38,7 +38,7 @@ class Orchestrator:
 
     用法:
         orch = Orchestrator(session_factory)
-        agent_run = await orch.run(query="招聘筛选流程", workflow_id="wf-001")
+        agent_run = await orch.run(query="招聘筛选流程", workflow_id=1)
     """
 
     def __init__(
@@ -55,7 +55,7 @@ class Orchestrator:
     async def run(
         self,
         query: str,
-        workflow_id: str,
+        workflow_id: int,
         *,
         resume_from: int | None = None,
     ) -> AgentRun:
@@ -63,7 +63,7 @@ class Orchestrator:
 
         Args:
             query: 用户查询，如 "招聘筛选流程"
-            workflow_id: 工作流 ID (Phase 3 才有 workflows 表)
+            workflow_id: workflows 表的主键 ID
             resume_from: 如果传了，从该 agent_run_id 恢复继续
 
         Returns:

@@ -41,6 +41,7 @@ Thumbs.db
 
 # ===== Project specific =====
 output/
+generated-projects/
 *.mov
 *.mp4
 *.avi

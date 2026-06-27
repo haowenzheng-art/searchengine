@@ -8,7 +8,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.auth import router as auth_router
 from app.api.v1.feedback import router as feedback_router
+from app.api.v1.projects import router as projects_router
+from app.api.v1.usage import router as usage_router
+from app.api.v1.workflows import router as workflows_router
 from app.config import settings
 from app.core.logging import get_logger, setup_logging
 
@@ -41,6 +45,10 @@ if settings.cors_origins:
     )
 
 app.include_router(feedback_router)
+app.include_router(auth_router)
+app.include_router(workflows_router)
+app.include_router(projects_router)
+app.include_router(usage_router)
 
 
 @app.get("/health")

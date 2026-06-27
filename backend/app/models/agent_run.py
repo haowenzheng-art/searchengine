@@ -6,7 +6,7 @@ messages 字段存 Anthropic SDK 的完整 messages 历史 (JSONB)，
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Integer, String, Text, DateTime
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,8 +17,14 @@ class AgentRun(Base):
     __tablename__ = "agent_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # Phase 3 才有 workflows 表，先用 string 占位
-    workflow_id: Mapped[str] = mapped_column(String(64), index=True)
+    # FK to workflows.id. 一个 workflow 可以重跑多次 (产生多个 agent_runs).
+    workflow_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("workflows.id", ondelete="CASCADE"), index=True
+    )
+    # FK to projects.id. OPC 项目生成的 Agent run.
+    project_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     # pending / running / completed / failed / interrupted
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     # Anthropic messages 历史，断点续跑的关键
@@ -30,6 +36,8 @@ class AgentRun(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    workflow: Mapped["Workflow"] = relationship(back_populates="agent_runs")
+    project: Mapped["Project | None"] = relationship(back_populates="agent_runs")
     tool_calls: Mapped[list["ToolCall"]] = relationship(
         back_populates="agent_run", cascade="all, delete-orphan", order_by="ToolCall.id"
     )

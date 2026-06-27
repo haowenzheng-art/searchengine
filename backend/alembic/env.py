@@ -16,7 +16,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.config import settings
 from app.db.base import Base
 # 导入所有 models 让 Base.metadata 能识别
-from app.models import AgentRun, Evidence, EvidenceFeedback, ToolCall  # noqa: F401
+from app.models import (  # noqa: F401
+    AgentRun,
+    AuditLog,
+    Artifact,
+    Evidence,
+    EvidenceFeedback,
+    Organization,
+    Project,
+    Subscription,
+    ToolCall,
+    UsageRecord,
+    User,
+    Workflow,
+)
 
 config = context.config
 

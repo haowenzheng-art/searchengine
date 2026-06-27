@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     agent_max_tokens_per_call: int = 4096
     agent_score_threshold: float = 7.0
 
+    # 生成项目存储路径
+    generated_projects_dir: str = "generated-projects"
+
     # JWT
     jwt_secret: str = "CHANGE_ME_IN_PRODUCTION"
     jwt_algorithm: str = "HS256"
