@@ -6,6 +6,9 @@ DB 持久化由 orchestrator 在 tool_use 返回后处理.
 """
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from pydantic import Field
 
 from app.agent.tools.base import Tool, ToolInput, ToolOutput
@@ -16,10 +19,10 @@ log = get_logger(__name__)
 
 class SaveReportInput(ToolInput):
     query: str
-    workflow_json: str
-    pain_points_json: str
-    agent_flow_json: str
-    roi_json: str
+    workflow_json: Any
+    pain_points_json: Any
+    agent_flow_json: Any
+    roi_json: Any
     summary: str = Field(description="200字以内的整体结论")
 
 
@@ -37,7 +40,7 @@ class SaveReportTool(Tool):
     description = (
         "编译最终报告并保存. "
         "在所有分析完成后调用此 tool 结束 agent 循环. "
-        "传入工作流、痛点、AI 方案、ROI 的 JSON 字符串和总结."
+        "传入工作流、痛点、AI 方案、ROI 的 JSON 字符串或对象和总结."
     )
     input_schema = SaveReportInput
     output_schema = SaveReportOutput
@@ -46,7 +49,6 @@ class SaveReportTool(Tool):
         assert isinstance(input, SaveReportInput)
         log.info("save_report_called", query=input.query, summary_len=len(input.summary))
         # Phase 1: 只做结构化校验，DB 持久化由 orchestrator 处理
-        import json
 
         try:
             workflow = json.loads(input.workflow_json) if isinstance(input.workflow_json, str) else input.workflow_json

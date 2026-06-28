@@ -90,6 +90,16 @@ async def _run_agent_async(workflow_id: int) -> dict[str, Any]:
                     wf.completed_at = datetime.utcnow()
                     if agent_run.error:
                         wf.error = agent_run.error
+                    # 如果分析成功, 生成 MVP 计划供 OPC 使用
+                    if agent_run.status == "completed" and agent_run.final_output:
+                        from app.services.workflow_converter import build_mvp_plan_from_workflow
+                        wf.mvp_plan = build_mvp_plan_from_workflow(
+                            query=wf.query,
+                            workflow=agent_run.final_output.get("workflow", {}),
+                            pain_points=agent_run.final_output.get("pain_points", []),
+                            agent_flow=agent_run.final_output.get("agent_flow", {}),
+                            roi=agent_run.final_output.get("roi"),
+                        )
                 await session.commit()
 
             # 取 tool_calls 用于 usage

@@ -30,6 +30,12 @@ async def call_llm_for_json(
         RuntimeError: if LLM did not call the expected tool.
     """
     client = get_current_llm()
+    # Agnes/OpenAI 兼容代理在强制 tool_choice 时可能不返回 tool_calls；
+    # 只提供一个 tool 时 auto 仍会调用它，所以 OpenAI provider 不强制。
+    tool_choice: dict[str, Any] | None = None
+    if client.provider != "openai":
+        tool_choice = {"type": "tool", "name": tool_name}
+
     response = await client.create_message(
         messages=[{"role": "user", "content": user_content}],
         tier=tier,
@@ -41,7 +47,7 @@ async def call_llm_for_json(
                 "input_schema": output_schema.model_json_schema(),
             }
         ],
-        tool_choice={"type": "tool", "name": tool_name},
+        tool_choice=tool_choice,
         temperature=temperature,
     )
     for block in response.content:

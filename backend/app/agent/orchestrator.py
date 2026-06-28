@@ -14,6 +14,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from app.agent.context import reset_workflow_id, set_workflow_id
 from app.agent.llm import LLMClient, LLMResponse, reset_current_llm, set_current_llm
 from app.agent.prompts import ORCHESTRATOR_SYSTEM
 from app.agent.state import (
@@ -207,6 +208,7 @@ class Orchestrator:
         output_obj = None
         save_output: dict[str, Any] | None = None
 
+        wf_token = set_workflow_id(agent_run.workflow_id)
         try:
             tool: Tool = self.registry.get(tool_name)
             input_obj = tool.validate_input(raw_input)
@@ -219,6 +221,8 @@ class Orchestrator:
                 tool=tool_name,
                 error=error,
             )
+        finally:
+            reset_workflow_id(wf_token)
 
         duration_ms = timer.elapsed_ms()
 

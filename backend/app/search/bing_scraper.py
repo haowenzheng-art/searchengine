@@ -63,7 +63,7 @@ def _sync_ddg_search(query: str, num_results: int) -> list[dict]:
     from ddgs import DDGS
 
     with DDGS() as ddgs:
-        raw = list(ddgs.text(query, max_results=num_results))
+        raw = list(ddgs.text(query, region="cn-zh", safesearch="off", max_results=num_results))
 
     return [
         {

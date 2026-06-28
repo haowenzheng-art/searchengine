@@ -5,13 +5,46 @@ Phase 2: 用真实 fetcher (Playwright + BS4 fallback).
 """
 from __future__ import annotations
 
-from pydantic import Field
+from datetime import datetime
 
+from pydantic import Field
+from sqlalchemy import select
+
+from app.agent.context import get_workflow_id
 from app.agent.tools.base import Tool, ToolInput, ToolOutput
 from app.core.logging import get_logger
+from app.db.session import async_session_factory
+from app.models.evidence import Evidence
 from app.search.fetcher import fetch_page as _fetch_page
 
 log = get_logger(__name__)
+
+
+async def _persist_fetch(
+    workflow_id: int,
+    url: str,
+    title: str | None,
+    content: str,
+    word_count: int,
+) -> None:
+    """把抓取到的正文写入 evidence 表；已存在则更新."""
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(Evidence).where(
+                Evidence.workflow_id == workflow_id,
+                Evidence.url == url,
+            )
+        )
+        ev = result.scalar_one_or_none()
+        if ev is None:
+            ev = Evidence(workflow_id=workflow_id, url=url, title=title)
+            session.add(ev)
+
+        ev.title = title or ev.title
+        ev.content = content
+        ev.word_count = word_count
+        ev.fetched_at = datetime.utcnow()
+        await session.commit()
 
 
 class FetchPageInput(ToolInput):
@@ -41,6 +74,19 @@ class FetchPageTool(Tool):
         assert isinstance(input, FetchPageInput)
         log.info("fetch_page_called", url=input.url)
         result = await _fetch_page(input.url)
+
+        workflow_id = get_workflow_id()
+        if workflow_id is not None and result.error is None:
+            await _persist_fetch(
+                workflow_id=workflow_id,
+                url=result.url,
+                title=result.title,
+                content=result.content,
+                word_count=result.word_count,
+            )
+        elif result.error is not None:
+            log.debug("fetch_page_error_skip_persist", url=input.url, error=result.error)
+
         return FetchPageOutput(
             url=result.url,
             content=result.content,

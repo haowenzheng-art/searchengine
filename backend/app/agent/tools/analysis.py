@@ -7,6 +7,9 @@
 """
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from app.agent.llm import LLMClient
@@ -79,7 +82,7 @@ class PainPoint(BaseModel):
 
 
 class IdentifyPainPointsInput(ToolInput):
-    workflow_json: str
+    workflow_json: str | dict[str, Any]
     corpus: str
 
 
@@ -99,8 +102,9 @@ class IdentifyPainPoints(Tool):
 
     async def execute(self, input: ToolInput) -> ToolOutput:
         assert isinstance(input, IdentifyPainPointsInput)
-        log.info("identify_pain_points_called", workflow_len=len(input.workflow_json))
-        user_content = f"Workflow JSON:\n{input.workflow_json}\n\nCorpus:\n{input.corpus[:4000]}"
+        log.info("identify_pain_points_called", workflow_len=len(input.workflow_json) if isinstance(input.workflow_json, str) else 0)
+        workflow_json = input.workflow_json if isinstance(input.workflow_json, str) else json.dumps(input.workflow_json, ensure_ascii=False)
+        user_content = f"Workflow JSON:\n{workflow_json}\n\nCorpus:\n{input.corpus[:4000]}"
         result = await call_llm_for_json(
             tier="sonnet",
             system=IDENTIFY_PAIN_POINTS_SYSTEM,
@@ -122,8 +126,8 @@ class InterventionPoint(BaseModel):
 
 
 class DesignAgentFlowInput(ToolInput):
-    workflow_json: str
-    pain_points_json: str
+    workflow_json: str | dict[str, Any]
+    pain_points_json: str | list[dict[str, Any]]
 
 
 class DesignAgentFlowOutput(ToolOutput):
@@ -144,9 +148,11 @@ class DesignAgentFlow(Tool):
     async def execute(self, input: ToolInput) -> ToolOutput:
         assert isinstance(input, DesignAgentFlowInput)
         log.info("design_agent_flow_called")
+        workflow_json = input.workflow_json if isinstance(input.workflow_json, str) else json.dumps(input.workflow_json, ensure_ascii=False)
+        pain_points_json = input.pain_points_json if isinstance(input.pain_points_json, str) else json.dumps(input.pain_points_json, ensure_ascii=False)
         user_content = (
-            f"Workflow JSON:\n{input.workflow_json}\n\n"
-            f"Pain Points JSON:\n{input.pain_points_json}"
+            f"Workflow JSON:\n{workflow_json}\n\n"
+            f"Pain Points JSON:\n{pain_points_json}"
         )
         result = await call_llm_for_json(
             tier="sonnet",
@@ -170,8 +176,8 @@ class ROIBreakdown(BaseModel):
 
 
 class CalculateROIInput(ToolInput):
-    workflow_json: str
-    agent_flow_json: str
+    workflow_json: str | dict[str, Any]
+    agent_flow_json: str | dict[str, Any]
 
 
 class CalculateROIOutput(ToolOutput):
@@ -191,9 +197,11 @@ class CalculateROI(Tool):
     async def execute(self, input: ToolInput) -> ToolOutput:
         assert isinstance(input, CalculateROIInput)
         log.info("calculate_roi_called")
+        workflow_json = input.workflow_json if isinstance(input.workflow_json, str) else json.dumps(input.workflow_json, ensure_ascii=False)
+        agent_flow_json = input.agent_flow_json if isinstance(input.agent_flow_json, str) else json.dumps(input.agent_flow_json, ensure_ascii=False)
         user_content = (
-            f"Workflow JSON:\n{input.workflow_json}\n\n"
-            f"Agent Flow JSON:\n{input.agent_flow_json}"
+            f"Workflow JSON:\n{workflow_json}\n\n"
+            f"Agent Flow JSON:\n{agent_flow_json}"
         )
         result = await call_llm_for_json(
             tier="sonnet",

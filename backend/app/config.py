@@ -32,8 +32,13 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://localhost:6379/1"
     celery_result_backend: str = "redis://localhost:6379/2"
 
-    # LLM (火山引擎方舟 Claude 兼容协议, 底层 GLM-5.2)
-    # 同时支持 LLM_API_KEY 和 VOLC_API_KEY 两种环境变量名
+    # LLM Provider: anthropic (default) or openai
+    llm_provider: str = Field(
+        default="anthropic",
+        validation_alias=AliasChoices("llm_provider", "provider"),
+    )
+
+    # Anthropic / Claude protocol (also used by 火山引擎方舟 Claude 兼容协议)
     llm_api_key: str = Field(
         default="",
         validation_alias=AliasChoices("llm_api_key", "volc_api_key"),
@@ -46,8 +51,22 @@ class Settings(BaseSettings):
         default="ark-code-latest",
         validation_alias=AliasChoices("llm_model", "volc_model"),
     )
-    # 三个 tier 都映射到同一个模型, 用 temperature 区分场景
-    # Phase 2 接入多模型时可以拆分
+
+    # OpenAI-compatible providers (Agnes, etc.)
+    openai_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("openai_api_key", "agnes_api_key"),
+    )
+    openai_base_url: str = Field(
+        default="https://api.openai.com/v1",
+        validation_alias=AliasChoices("openai_base_url", "agnes_base_url"),
+    )
+    openai_model: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices("openai_model", "agnes_model"),
+    )
+
+    # Legacy explicit Anthropic settings (kept for compatibility)
     anthropic_api_key: str = ""
     anthropic_model_haiku: str = "claude-haiku-4-5"
     anthropic_model_sonnet: str = "claude-sonnet-4-6"
