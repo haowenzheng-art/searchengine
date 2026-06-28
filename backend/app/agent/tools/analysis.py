@@ -12,6 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.agent.context import get_workflow_id
 from app.agent.llm import LLMClient
 from app.agent.prompts import (
     CALCULATE_ROI_SYSTEM,
@@ -22,6 +23,8 @@ from app.agent.prompts import (
 from app.agent.tools._llm_helper import call_llm_for_json
 from app.agent.tools.base import Tool, ToolInput, ToolOutput
 from app.core.logging import get_logger
+from app.db.session import async_session_factory
+from app.models.evidence import Evidence
 
 log = get_logger(__name__)
 
@@ -37,8 +40,8 @@ class WorkflowStep(BaseModel):
 
 
 class ExtractWorkflowInput(ToolInput):
-    corpus: str
     query: str
+    corpus: str = ""  # 可选；空时 tool 自动从 evidence 表读取
 
 
 class ExtractWorkflowOutput(ToolOutput):
@@ -47,10 +50,42 @@ class ExtractWorkflowOutput(ToolOutput):
     missing_info: list[str] = Field(default_factory=list)
 
 
+async def _load_corpus_from_evidence(workflow_id: int, query: str) -> str:
+    """从 evidence 表读取 score >= 7 的正文并拼接成 corpus."""
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(Evidence).where(
+                Evidence.workflow_id == workflow_id,
+                Evidence.score >= 7,
+            ).order_by(Evidence.score.desc())
+        )
+        items = result.scalars().all()
+        if not items:
+            return ""
+        parts = []
+        total = 0
+        max_chars = 15000
+        for ev in items:
+            text = ev.content or ev.snippet or ""
+            if not text:
+                continue
+            header = f"\n\n--- URL: {ev.url} ---\nTitle: {ev.title or ''}\n"
+            chunk = header + text
+            if total + len(chunk) > max_chars:
+                remaining = max_chars - total
+                if remaining > 0:
+                    chunk = chunk[:remaining]
+                    parts.append(chunk)
+                break
+            parts.append(chunk)
+            total += len(chunk)
+        return "".join(parts)
+
+
 class ExtractWorkflow(Tool):
     name = "extract_workflow"
     description = (
-        "从抓取的 corpus 中提取结构化的企业工作流. "
+        "从已抓取的高质量 corpus 中提取结构化的企业工作流. "
         "只在累计 3 个或更多高质量 corpus 后调用. "
         "返回步骤列表、整体摘要、缺失信息."
     )
@@ -59,8 +94,20 @@ class ExtractWorkflow(Tool):
 
     async def execute(self, input: ToolInput) -> ToolOutput:
         assert isinstance(input, ExtractWorkflowInput)
-        log.info("extract_workflow_called", corpus_len=len(input.corpus), query=input.query)
-        user_content = f"Query: {input.query}\n\nCorpus:\n{input.corpus}"
+        workflow_id = get_workflow_id()
+        corpus = input.corpus
+        if not corpus and workflow_id is not None:
+            corpus = await _load_corpus_from_evidence(workflow_id, input.query)
+            log.info("extract_workflow_loaded_corpus", workflow_id=workflow_id, corpus_len=len(corpus))
+        if not corpus:
+            log.warning("extract_workflow_empty_corpus", workflow_id=workflow_id)
+            return ExtractWorkflowOutput(
+                steps=[],
+                summary="",
+                missing_info=["未找到足够的高质量 corpus"],
+            )
+        log.info("extract_workflow_called", corpus_len=len(corpus), query=input.query)
+        user_content = f"Query: {input.query}\n\nCorpus:\n{corpus}"
         result = await call_llm_for_json(
             tier="sonnet",
             system=EXTRACT_WORKFLOW_SYSTEM,

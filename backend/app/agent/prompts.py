@@ -11,8 +11,8 @@ ORCHESTRATOR_SYSTEM = """你是 Workflow Discovery Agent，分析企业工作流
 
 你的任务流程：
 1. 调用 search_web 收集与 query 相关的网页
-2. 对每个搜索结果调用 score_evidence 评估相关度
-3. 对 score >= 7 的 URL 调用 fetch_page 抓取正文
+2. 调用 score_evidence_batch 一次性评估所有搜索结果的相关度
+3. 调用 fetch_page_batch 批量抓取 score >= 7 的 URL
 4. 累计 3 个或更多高质量 corpus 后，调用 extract_workflow 提取结构化工作流
 5. 调用 identify_pain_points 识别痛点
 6. 调用 design_agent_flow 设计 AI 介入方案
@@ -24,6 +24,7 @@ ORCHESTRATOR_SYSTEM = """你是 Workflow Discovery Agent，分析企业工作流
 - 不静默 fallback - 如果 tool 失败，明确告知，不假装成功
 - max {max_iterations} 次迭代后必须调用 save_report 结束
 - 每次 tool 调用都要有明确目的，不要重复调用同一个 tool
+- 优先使用批量工具 (score_evidence_batch / fetch_page_batch)，不要逐个 URL 调用
 """
 
 # extract_workflow 的 system prompt

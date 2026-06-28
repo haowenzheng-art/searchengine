@@ -11,9 +11,9 @@ from app.agent.tools.analysis import (
     ExtractWorkflow,
     IdentifyPainPoints,
 )
-from app.agent.tools.fetch_page import FetchPageTool
+from app.agent.tools.fetch_page_batch import FetchPageBatchTool
 from app.agent.tools.save_report import SaveReportTool
-from app.agent.tools.score_evidence import ScoreEvidenceTool
+from app.agent.tools.score_evidence_batch import ScoreEvidenceBatchTool
 from app.agent.tools.search_web import SearchWebTool
 
 
@@ -27,8 +27,8 @@ class ToolRegistry:
     def _register_defaults(self) -> None:
         for tool_cls in [
             SearchWebTool,
-            ScoreEvidenceTool,
-            FetchPageTool,
+            ScoreEvidenceBatchTool,
+            FetchPageBatchTool,
             ExtractWorkflow,
             IdentifyPainPoints,
             DesignAgentFlow,
