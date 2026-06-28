@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import mermaid from 'mermaid'
 import {
   ArrowLeft,
   Trash2,
@@ -302,21 +303,166 @@ export function WorkflowDetailPage() {
         </TabsContent>
 
         {wf.status === 'completed' && latestRun?.final_output && (
-          <TabsContent value="report" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">最终报告</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <pre className="text-xs bg-muted/30 rounded p-4 overflow-x-auto">
-                  {JSON.stringify(latestRun.final_output, null, 2)}
-                </pre>
-              </CardContent>
-            </Card>
+          <TabsContent value="report" className="mt-4 space-y-4">
+            <ReportView finalOutput={latestRun.final_output} />
           </TabsContent>
         )}
       </Tabs>
     </div>
+  )
+}
+
+function buildWorkflowDiagram(finalOutput: Record<string, unknown>): string {
+  const steps = (finalOutput.workflow as { steps?: Array<{ step_name: string }> })?.steps ?? []
+  if (steps.length === 0) {
+    return 'flowchart TD\n  empty["暂无工作流步骤"]'
+  }
+  const lines = ['flowchart TD']
+  steps.forEach((step, idx) => {
+    const id = `S${idx}`
+    const label = step.step_name.replace(/"/g, '#quot;')
+    lines.push(`  ${id}["${label}"]`)
+    if (idx > 0) {
+      lines.push(`  S${idx - 1} --> ${id}`)
+    }
+  })
+  return lines.join('\n')
+}
+
+function ReportView({ finalOutput }: { finalOutput: Record<string, unknown> }) {
+  const diagramRef = useRef<HTMLDivElement>(null)
+  const diagram = buildWorkflowDiagram(finalOutput)
+
+  useEffect(() => {
+    if (!diagramRef.current) return
+    mermaid.initialize({ startOnLoad: false, theme: 'default' })
+    mermaid
+      .render('workflow-report-diagram', diagram)
+      .then(({ svg }) => {
+        if (diagramRef.current) {
+          diagramRef.current.innerHTML = svg
+        }
+      })
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error('mermaid render failed', err)
+        if (diagramRef.current) {
+          diagramRef.current.textContent = '流程图渲染失败，请查看原始数据'
+        }
+      })
+  }, [diagram])
+
+  const summary = (finalOutput.summary as string) ?? ''
+  const painPoints = (finalOutput.pain_points as Array<{ description: string; step_name?: string; time_pct?: number; root_cause?: string }>) ?? []
+  const agentFlow = (finalOutput.agent_flow as { intervention_points?: Array<{ step_name: string; ai_action: string; human_approval: boolean; expected_effect: string }>; overall_strategy?: string }) ?? {}
+  const roi = (finalOutput.roi as { annual_cost?: number; annual_savings?: number; roi_pct?: number; confidence?: string; assumptions?: string[] }) ?? {}
+
+  return (
+    <>
+      {summary && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">整体结论</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{summary}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">工作流流程图</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div ref={diagramRef} className="flex justify-center overflow-x-auto" />
+        </CardContent>
+      </Card>
+
+      {painPoints.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">痛点分析</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {painPoints.map((p, idx) => (
+                <div key={idx} className="border rounded-md p-3">
+                  <div className="font-medium text-sm">{p.description}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    所在步骤：{p.step_name ?? '-'} · 耗时占比：{p.time_pct ?? 0}%
+                  </div>
+                  {p.root_cause && (
+                    <div className="text-xs text-muted-foreground mt-1">根因：{p.root_cause}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {(agentFlow.intervention_points?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">AI 介入方案</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {agentFlow.overall_strategy && (
+              <p className="text-sm text-muted-foreground mb-3">{agentFlow.overall_strategy}</p>
+            )}
+            <div className="space-y-3">
+              {agentFlow.intervention_points?.map((point, idx) => (
+                <div key={idx} className="border rounded-md p-3">
+                  <div className="font-medium text-sm">
+                    {point.step_name}
+                    {point.human_approval && (
+                      <Badge variant="outline" className="ml-2 text-xs">需人工审批</Badge>
+                    )}
+                  </div>
+                  <div className="text-sm mt-1">{point.ai_action}</div>
+                  <div className="text-xs text-muted-foreground mt-1">预期效果：{point.expected_effect}</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {roi.roi_pct !== undefined && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">ROI 预估</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <div className="text-xs text-muted-foreground">年化成本</div>
+                <div className="text-lg font-semibold">¥{formatNumber(roi.annual_cost ?? 0)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">年化收益</div>
+                <div className="text-lg font-semibold">¥{formatNumber(roi.annual_savings ?? 0)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">ROI</div>
+                <div className="text-lg font-semibold">{roi.roi_pct}%</div>
+              </div>
+            </div>
+            {roi.assumptions && roi.assumptions.length > 0 && (
+              <div className="mt-3">
+                <div className="text-xs text-muted-foreground mb-1">关键假设</div>
+                <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
+                  {roi.assumptions.map((a, idx) => (
+                    <li key={idx}>{a}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </>
   )
 }
 
