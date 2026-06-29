@@ -18,6 +18,7 @@ from app.agent.orchestrator import Orchestrator
 from app.agent.tools.registry import ToolRegistry
 from app.config import settings
 from app.models import AgentRun, ToolCall
+from app.search.fetcher import FetchResult
 from tests.conftest import MockLLMResponse, make_tool_use_block
 
 
@@ -54,36 +55,50 @@ def _score_evidence_response(score: float = 8.0, reason: str = "真实流程文�
 
 
 @pytest.mark.asyncio
-async def test_happy_path(session_factory, db_session, mock_llm, workflow):
-    """完整 happy path - 4 次 tool 调用后 save_report 完成.
+async def test_happy_path(session_factory, db_session, mock_llm, monkeypatch, workflow):
+    """完整 happy path - 批量评分/抓取后 save_report 完成.
 
     Mock LLM 序列:
     - mock 0: orchestrator → search_web
-    - mock 1: orchestrator → score_evidence
-    - mock 2: score_evidence 内部 LLM → score_evidence_response (高分)
-    - mock 3: orchestrator → fetch_page
+    - mock 1: orchestrator → score_evidence_batch
+    - mock 2: score_evidence_batch 内部 LLM → score_evidence_response (高分)
+    - mock 3: orchestrator → fetch_page_batch
     - mock 4: orchestrator → save_report
     """
+    async def fake_score_evidence(**kwargs):
+        return 8.0, "真实流程文章", False, False, 2
+
+    async def fake_fetch_page(url: str):
+        return FetchResult(
+            url=url,
+            content="招聘筛选流程包括简历收集、简历筛选、初筛面试和专业面试。",
+            word_count=32,
+            fetch_time_ms=10,
+            title="招聘筛选流程",
+        )
+
+    monkeypatch.setattr("app.agent.tools.score_evidence_batch._score_evidence", fake_score_evidence)
+    monkeypatch.setattr("app.agent.tools.fetch_page_batch._fetch_page", fake_fetch_page)
+
     mock = mock_llm([
         MockLLMResponse(
             content=[make_tool_use_block("search_web", {"query": "招聘筛选流程", "num_results": 3})],
             stop_reason="tool_use",
         ),
         MockLLMResponse(
-            content=[make_tool_use_block("score_evidence", {
-                "url": "https://hr.example.com/articles/recruitment-screening-process",
-                "snippet": "招聘筛选流程6个步骤",
+            content=[make_tool_use_block("score_evidence_batch", {
                 "query": "招聘筛选流程",
+                "items": [{
+                    "url": "https://hr.example.com/articles/recruitment-screening-process",
+                    "snippet": "招聘筛选流程6个步骤",
+                    "title": "招聘筛选流程",
+                }],
             })],
             stop_reason="tool_use",
         ),
         MockLLMResponse(
-            content=[_score_evidence_response()],
-            stop_reason="tool_use",
-        ),
-        MockLLMResponse(
-            content=[make_tool_use_block("fetch_page", {
-                "url": "https://hr.example.com/articles/recruitment-screening-process",
+            content=[make_tool_use_block("fetch_page_batch", {
+                "urls": ["https://hr.example.com/articles/recruitment-screening-process"],
             })],
             stop_reason="tool_use",
         ),
@@ -100,16 +115,16 @@ async def test_happy_path(session_factory, db_session, mock_llm, workflow):
     assert agent_run.status == "completed"
     assert agent_run.final_output is not None
     assert agent_run.final_output["query"] == "test"
-    # 5 次 LLM 调用: 4 次 orchestrator + 1 次 score_evidence 内部
-    assert mock.call_count == 5
+    # 4 次 LLM 调用: search → score batch → fetch batch → save_report
+    assert mock.call_count == 4
 
-    # 验证 tool_calls 持久化 (4 个 tool_use block → 4 个 tool_call)
+    # 验证 tool_calls 持久化 (4 个 orchestrator tool_use block → 4 个 tool_call)
     result = await db_session.execute(select(ToolCall).order_by(ToolCall.id))
     tool_calls = result.scalars().all()
     assert len(tool_calls) == 4
     assert tool_calls[0].tool_name == "search_web"
-    assert tool_calls[1].tool_name == "score_evidence"
-    assert tool_calls[2].tool_name == "fetch_page"
+    assert tool_calls[1].tool_name == "score_evidence_batch"
+    assert tool_calls[2].tool_name == "fetch_page_batch"
     assert tool_calls[3].tool_name == "save_report"
     assert all(tc.error is None for tc in tool_calls)
 

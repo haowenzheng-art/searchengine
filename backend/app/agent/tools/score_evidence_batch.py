@@ -19,8 +19,10 @@ from app.search.scorer import score_evidence as _score_evidence
 
 log = get_logger(__name__)
 
-# 同时评分的并发数上限 - 避免一次性打爆 LLM provider
-_MAX_CONCURRENT_SCORES = 5
+# 同时评分的并发数上限 - Volc rate limit 比较严，3 并发 + retry 比较稳
+_MAX_CONCURRENT_SCORES = 3
+_MAX_RETRIES = 3
+_RETRY_BASE_DELAY = 2.0  # seconds; exponential backoff: 2, 4, 8
 
 
 class ScoreEvidenceItem(BaseModel):
@@ -79,37 +81,55 @@ async def _persist_score(
         await session.commit()
 
 
+def _is_rate_limited(err: Exception) -> bool:
+    """Detect provider rate limit (Volc 429 / Anthropic 429)."""
+    msg = str(err)
+    return "429" in msg or "RateLimit" in msg or "TooManyRequests" in msg
+
+
 async def _score_one(
     query: str,
     item: ScoreEvidenceItem,
     workflow_id: int | None,
 ) -> ScoreEvidenceBatchItemOutput:
-    score, reason, is_home, is_disamb, layer = await _score_evidence(
-        url=item.url,
-        snippet=item.snippet,
-        query=query,
-        title=item.title,
-    )
-    if workflow_id is not None:
-        await _persist_score(
-            workflow_id=workflow_id,
+    last_err: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            score, reason, is_home, is_disamb, layer = await _score_evidence(
+                url=item.url,
+                snippet=item.snippet,
+                query=query,
+                title=item.title,
+            )
+        except Exception as e:
+            last_err = e
+            if _is_rate_limited(e) and attempt < _MAX_RETRIES - 1:
+                delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                log.warning("score_rate_limited_retry", url=item.url, attempt=attempt + 1, delay=delay)
+                await asyncio.sleep(delay)
+                continue
+            raise
+        if workflow_id is not None:
+            await _persist_score(
+                workflow_id=workflow_id,
+                url=item.url,
+                title=item.title,
+                snippet=item.snippet,
+                score=score,
+                reason=reason,
+                is_homepage=is_home,
+                is_disambiguation=is_disamb,
+                score_layer=layer,
+            )
+        return ScoreEvidenceBatchItemOutput(
             url=item.url,
-            title=item.title,
-            snippet=item.snippet,
             score=score,
             reason=reason,
             is_homepage=is_home,
             is_disambiguation=is_disamb,
             score_layer=layer,
         )
-    return ScoreEvidenceBatchItemOutput(
-        url=item.url,
-        score=score,
-        reason=reason,
-        is_homepage=is_home,
-        is_disambiguation=is_disamb,
-        score_layer=layer,
-    )
+    raise RuntimeError(f"score_evidence exhausted retries for {item.url}: {last_err}")
 
 
 class ScoreEvidenceBatchTool(Tool):

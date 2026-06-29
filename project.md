@@ -238,9 +238,37 @@
 - push/PR 自动触发
 
 **产品页面截图**：
-- `docs/screenshots/` 目录已建
-- 需要人工启动应用 + 截图（Claude Code 无法直接截图浏览器）
-- `docs/product-pages.md` 详细说明每个页面应该截什么
+- `docs/screenshots/` 已补齐核心截图
+- 2026-06-29 用真实中文 workflow #18 重新捕获：Dashboard、工作流时间线、证据链、报告页
+- 截图尺寸校验：`03-dashboard.png` 1440×900，`05-detail-timeline.png` 1440×1437，`07-evidence.png` 1440×4683，`08-report.png` 1440×2527
+- `docs/product-pages.md` 继续作为页面说明和截图索引
+
+### 优化前后真实中文 Workflow 对比（2026-06-29）
+
+用户要求切到 Volc 后跑一条中文 workflow，做真实优化前后对比。查询词统一为 `招聘筛选流程`。
+
+| 指标 | 优化前：串行工具调用（WF #11, Agnes） | 优化后：批量工具 + Volc（WF #18） | 结论 |
+|------|--------------------------------------|-----------------------------------|------|
+| 状态 | completed | completed | 两者都能完成 |
+| 总耗时 | 12m49s | 11m17s | 约 12% 更快 |
+| Agent 迭代数 | 18 | 11 | -39%，orchestrator 循环压力明显下降 |
+| Tool calls | 18 | 13 | -28%，主要来自 score/fetch 批量化 |
+| 输入 tokens | 190,364 | 28,139 | -85%，上下文膨胀被明显压住 |
+| 输出 tokens | 10,396 | 18,406 | 报告内容更完整 |
+| Tool 总耗时 | 216.2s | 518.3s | Volc 限流 + GLM-5.2 tool retry 拉长工具耗时 |
+| 证据链 | 串行 score/fetch | 24 条证据，13 条高分，12 条已抓取 | 覆盖更完整 |
+
+**关键观察**：
+1. 批量工具把“6 次 score + 6 次 fetch”压成 `score_evidence_batch` + `fetch_page_batch`，让 Agent 迭代数从 18 降到 11。
+2. 输入 tokens 从 190K 降到 28K，是本轮最核心优化；这说明减少 tool-use 轮次比单纯换模型更关键。
+3. Volc 有严格 429 限流。#17 曾因并发 5 的 `score_evidence_batch` 失败；已把并发降到 3，并加 2s/4s/8s 指数退避重试。#18 中 `score_evidence_batch` 用时 145.95s 但最终成功，证明重试逻辑生效。
+4. GLM-5.2 仍存在 schema 稳定性问题：#18 的 `calculate_roi` 连续 3 次返回 `roi` 字段类型错误，`save_report` 第一次缺 `summary`，orchestrator 继续循环后自愈完成。
+
+**截图产物**：
+- `docs/screenshots/03-dashboard.png`
+- `docs/screenshots/05-detail-timeline.png`
+- `docs/screenshots/07-evidence.png`
+- `docs/screenshots/08-report.png`
 
 ---
 
@@ -313,7 +341,7 @@ project.md   # 本文档
 
 1. **SerpAPI key 未用**：`.env` 里 `SERPAPI_KEY` 为空。当前用 ddgs 替代，如果 ddgs 不稳定或要规模化，再考虑 SerpAPI。
 2. **知乎反爬**：Playwright + httpx 都拿不到知乎内容（403）。V2 可能要加代理池或用 archive.org fallback。
-3. **GLM-5.2 tool use 不稳定**：calculate_roi 失败率较高。V2 观察，必要时加 retry 层或换更强模型。
+3. **GLM-5.2 tool use 不稳定**：calculate_roi/save_report schema 偶发失败，orchestrator 能靠继续循环自愈；V2 观察，必要时加 retry 层或换更强模型。
 4. **搜索无缓存**：每次都打 ddgs。V2 加 Redis 缓存（query hash → 结果，TTL 1h）。
 5. **黄金集只有 30 用例**：计划是 100 个。V2 通过用户反馈闭环扩充。
 6. **无 Stripe 计费**：usage_records 表已就绪，V2 接 Stripe 把用量转为账单。
@@ -321,32 +349,14 @@ project.md   # 本文档
 8. **无速率限制**：V2 加 Redis rate limit（免费 10/天，付费按 plan）。
 9. **无 refresh token 黑名单**：当前 refresh token 7 天有效期内均可换新。V2 加 `revoked_tokens` 表支持登出。
 10. **无多租户**：当前用 user_id 隔离。V2 如果要服务多个组织，加 tenant_id + 中间件。
-11. **截图待补**：`docs/screenshots/` 目录已建，需要人工启动应用截图。`docs/product-pages.md` 详细说明每个页面应该截什么。
+11. **Volc 429 限流**：评分批量工具已把并发从 5 降到 3，并加入指数退避；V2 可按租户加 Redis rate limit 和 provider 级全局限流。
 12. **黄金集 flaky**：LLM 评分非确定性，实测准确率在 83-87% 波动。V2 加固定 temperature + seed 或扩到 100 用例降低方差。
 
 ---
 
 ## 下一步
 
-项目已可上线 GitHub。建议操作：
-
-1. **初始化 git 仓库 + 推送 GitHub**（如果还没做）
-   ```bash
-   cd C:/Users/19802/Desktop/ClaudeCodeTest/searchengine
-   git init
-   git add .
-   git commit -m "Phase 0-5 complete: enterprise SaaS ready"
-   git remote add origin https://github.com/USER/searchengine.git
-   git push -u origin main
-   ```
-
-2. **补截图**（人工操作）
-   - 启动应用：后端 + Celery + 前端
-   - 打开 http://localhost:5173
-   - 按 `docs/product-pages.md` 清单截图
-   - 保存到 `docs/screenshots/`
-
-3. **V2 规划**（按需）
+项目已补齐真实中文 workflow 基准、截图和 GitHub 文档。建议后续按需进入 V2：
    - Stripe 计费
    - WebSocket 实时进度
    - 多租户
